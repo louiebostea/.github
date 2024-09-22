@@ -1,0 +1,29 @@
+name: "PR Checklist Validation"
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  checklist:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check if checklist is fully completed
+        run: |
+          PR_BODY=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} | jq -r .body)
+
+          CHECKED_ITEMS=$(echo "$PR_BODY" | grep -o '\[x\]' | wc -l)
+          UNCHECKED_ITEMS=$(echo "$PR_BODY" | grep -o '\[ \]' | wc -l)
+
+          if [[ "$UNCHECKED_ITEMS" -gt 0 ]]; then
+            echo "Checklist is not fully completed. Found $UNCHECKED_ITEMS unchecked items."
+            exit 1
+          else
+            echo "Checklist is fully completed."
+          fi
